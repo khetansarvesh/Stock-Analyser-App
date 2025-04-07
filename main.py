@@ -26,7 +26,8 @@ class StockAnalysisApp:
         self.api = StockAPI(default_symbols=config.DEFAULT_SYMBOLS)
         self.trend_analyzer = TrendAnalyzer(
             max_size=config.MAX_HEAP_SIZE, 
-            window_size=config.DEFAULT_WINDOW_SIZE
+            window_size=config.DEFAULT_WINDOW_SIZE,
+            stock_api=self.api
         )
         self.alert_manager = AlertManager()
         self.visualizer = StockVisualizer(theme=config.CHART_THEME)
@@ -56,10 +57,10 @@ class StockAnalysisApp:
         try:
             # Store previous data
             self.previous_data = self.current_data.copy()
-
+            
             # Get current prices
             self.current_data = self.api.get_current_prices()
-
+            
             # Update trend analyzer
             self.trend_analyzer.update_batch(self.current_data, self.previous_data)
             
@@ -119,7 +120,22 @@ class StockAnalysisApp:
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader("Top Gainers & Losers"),
+                        dbc.CardHeader([
+                            dbc.Row([
+                                dbc.Col("Top Gainers & Losers", width=6),
+                                dbc.Col([
+                                    dbc.Select(
+                                        id="timeframe-selector",
+                                        options=[
+                                            {"label": "Default", "value": "default"},
+                                            {"label": "1 Day Ago", "value": "day"},
+                                            {"label": "1 Week Ago", "value": "week"}
+                                        ],
+                                        value="default"
+                                    )
+                                ], width=6)
+                            ])
+                        ]),
                         dbc.CardBody([
                             dcc.Graph(id="gainers-losers-chart")
                         ])
@@ -241,7 +257,8 @@ class StockAnalysisApp:
         self.app.callback(
             Output("gainers-losers-chart", "figure"),
             [Input("interval-component", "n_intervals"),
-             Input("refresh-button", "n_clicks")]
+             Input("refresh-button", "n_clicks"),
+             Input("timeframe-selector", "value")]
         )(self.update_gainers_losers_chart)
         
         self.app.callback(
@@ -273,19 +290,30 @@ class StockAnalysisApp:
             [Input("interval-component", "n_intervals")]
         )(self.update_time_display)
     
-    def update_gainers_losers_chart(self, n_intervals=None, n_clicks=None):
+    def update_gainers_losers_chart(self, n_intervals=None, n_clicks=None, timeframe="default"):
         """Update the gainers and losers chart."""
         if self.trend_analyzer.last_update is None:
             # No data yet
             return go.Figure().update_layout(title="No data available yet")
         
-        top_gainers = self.trend_analyzer.get_top_gainers(5)
-        top_losers = self.trend_analyzer.get_top_losers(5)
+        # Get title based on timeframe
+        title = "Top Gainers and Losers"
+        if timeframe == "day":
+            title = "Top Gainers and Losers - 1 Day Comparison"
+        elif timeframe == "week":
+            title = "Top Gainers and Losers - 1 Week Comparison"
+        
+        if timeframe == "default":
+            top_gainers = self.trend_analyzer.get_top_gainers(5)
+            top_losers = self.trend_analyzer.get_top_losers(5)
+        else:
+            top_gainers = self.trend_analyzer.get_top_gainers(5, timeframe)
+            top_losers = self.trend_analyzer.get_top_losers(5, timeframe)
         
         return self.visualizer.create_gainers_losers_chart(
             top_gainers, 
             top_losers, 
-            "Top Gainers and Losers"
+            title
         )
     
     def update_stock_price_chart(self, symbol, n_intervals=None, n_clicks=None):

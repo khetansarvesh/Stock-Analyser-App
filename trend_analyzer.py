@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
@@ -11,17 +11,35 @@ class TrendAnalyzer:
     Analyzes stock trends using heap data structures and sliding windows.
     """
     
-    def __init__(self, max_size=10, window_size=60):
+    def __init__(self, max_size=10, window_size=60, stock_api=None):
         """
         Initialize the trend analyzer.
         
         Args:
             max_size (int): Maximum number of stocks to track in each heap
             window_size (int): Size of the sliding window for analysis
+            stock_api (StockAPI): Stock API instance for data fetching
         """
         # Heaps for tracking top gainers and losers
         self.gainers_heap = StockMaxHeap(max_size=max_size)
         self.losers_heap = StockMinHeap(max_size=max_size)
+        
+        # Heaps for different timeframes
+        self.timeframe_heaps = {
+            'day': {
+                'gainers': StockMaxHeap(max_size=max_size),
+                'losers': StockMinHeap(max_size=max_size),
+                'last_update': None
+            },
+            'week': {
+                'gainers': StockMaxHeap(max_size=max_size),
+                'losers': StockMinHeap(max_size=max_size),
+                'last_update': None
+            }
+        }
+        
+        # Store reference to the stock API
+        self.stock_api = stock_api
         
         # Sliding window for time-based analysis
         self.sliding_window = SlidingWindow(window_size=window_size)
@@ -51,7 +69,7 @@ class TrendAnalyzer:
         else:
             pct_change = 0
         
-        # Update heaps
+        # Update main heaps
         self.gainers_heap.push(symbol, pct_change, timestamp)
         self.losers_heap.push(symbol, pct_change, timestamp)
         
@@ -67,7 +85,38 @@ class TrendAnalyzer:
             'timestamp': timestamp
         }
         
+        # Update time-based comparisons if stock API is available
+        if self.stock_api:
+            self._update_timeframe_comparisons(symbol, current_price, timestamp)
+        
         self.last_update = timestamp
+    
+    def _update_timeframe_comparisons(self, symbol, current_price, timestamp):
+        """
+        Update the timeframe-based comparisons for a symbol using data from the stock API.
+        
+        Args:
+            symbol (str): Stock symbol
+            current_price (float): Current stock price
+            timestamp (int): Timestamp of the data point
+        """
+        # Get timeframe data from the stock API
+        for timeframe in ['day', 'week']:
+            timeframe_data = self.stock_api.get_timeframe_data(timeframe)
+            
+            if timeframe_data and symbol in timeframe_data:
+                # Get historical price for this timeframe
+                historical_data = timeframe_data[symbol]
+                historical_price = historical_data.get('price')
+                
+                if historical_price and historical_price > 0:
+                    # Calculate percentage change
+                    pct_change = ((current_price - historical_price) / historical_price) * 100
+                    
+                    # Update heaps for this timeframe
+                    self.timeframe_heaps[timeframe]['gainers'].push(symbol, pct_change, timestamp)
+                    self.timeframe_heaps[timeframe]['losers'].push(symbol, pct_change, timestamp)
+                    self.timeframe_heaps[timeframe]['last_update'] = timestamp
     
     def update_batch(self, price_data, previous_data=None):
         """
@@ -93,28 +142,34 @@ class TrendAnalyzer:
             # Update with new data
             self.update(symbol, current_price, previous_price, timestamp)
     
-    def get_top_gainers(self, n=None):
+    def get_top_gainers(self, n=None, timeframe=None):
         """
         Get the top gaining stocks.
         
         Args:
             n (int): Number of top gainers to return
+            timeframe (str): Timeframe for comparison ('day', 'week', or None for default)
             
         Returns:
             list: List of top gainers
         """
+        if timeframe and timeframe in self.timeframe_heaps:
+            return self.timeframe_heaps[timeframe]['gainers'].get_top(n)
         return self.gainers_heap.get_top(n)
     
-    def get_top_losers(self, n=None):
+    def get_top_losers(self, n=None, timeframe=None):
         """
         Get the top losing stocks.
         
         Args:
             n (int): Number of top losers to return
+            timeframe (str): Timeframe for comparison ('day', 'week', or None for default)
             
         Returns:
             list: List of top losers
         """
+        if timeframe and timeframe in self.timeframe_heaps:
+            return self.timeframe_heaps[timeframe]['losers'].get_top(n)
         return self.losers_heap.get_top(n)
     
     def get_momentum_stocks(self, n=5):
@@ -172,22 +227,34 @@ class TrendAnalyzer:
         
         return sorted(breakouts, key=lambda x: abs(x.get('breakout_pct', 0)), reverse=True)
     
-    def generate_summary_report(self):
+    def generate_summary_report(self, timeframe=None):
         """
         Generate a summary report of current market trends.
         
+        Args:
+            timeframe (str): Timeframe for comparison ('day', 'week', or None for default)
+            
         Returns:
             dict: Summary report
         """
-        top_gainers = self.get_top_gainers(5)
-        top_losers = self.get_top_losers(5)
+        top_gainers = self.get_top_gainers(5, timeframe)
+        top_losers = self.get_top_losers(5, timeframe)
         momentum_stocks = self.get_momentum_stocks(5)
         volatile_stocks = self.get_highest_volatility(5)
         breakouts = self.detect_breakouts()
         
+        # Determine the appropriate title based on timeframe
+        timeframe_title = ""
+        if timeframe == 'day':
+            timeframe_title = "1 Day Comparison"
+        elif timeframe == 'week':
+            timeframe_title = "1 Week Comparison"
+        
         return {
             'timestamp': self.last_update or int(time.time()),
             'datetime': datetime.fromtimestamp(self.last_update or time.time()).strftime('%Y-%m-%d %H:%M:%S'),
+            'timeframe': timeframe,
+            'timeframe_title': timeframe_title,
             'top_gainers': top_gainers,
             'top_losers': top_losers,
             'momentum_stocks': momentum_stocks,

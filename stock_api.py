@@ -20,6 +20,18 @@ class StockAPI:
         
         self.cache = {}  # Cache to store recent data
         self.cache_expiry = 60  # Cache expiry in seconds
+        
+        # Historical snapshots for different timeframes
+        self.timeframe_data = {
+            'day': {},     # Snapshot from 1 day ago
+            'week': {}     # Snapshot from 1 week ago
+        }
+        
+        # Last update timestamps for each timeframe
+        self.timeframe_last_update = {
+            'day': 0,
+            'week': 0
+        }
     
     def get_current_prices(self, symbols=None):
         """
@@ -36,17 +48,108 @@ class StockAPI:
         try:
             tickers = yf.Tickers(" ".join(symbols))
             current_data = {}
+            current_timestamp = int(time.time())
             
             for symbol in symbols:
                 ticker = tickers.tickers[symbol]
                 # Get the last traded price
-                current_data[symbol] = {
-                    'price': ticker.info.get('regularMarketPrice', None),
-                    'timestamp': int(time.time()),
-                    'symbol': symbol
-                }
+                price = ticker.info.get('regularMarketPrice', None)
+                
+                if price is not None:
+                    current_data[symbol] = {
+                        'price': price,
+                        'timestamp': current_timestamp,
+                        'symbol': symbol
+                    }
+                    
+                    # Update timeframe data if needed
+                    self._update_timeframe_data(symbol, price, current_timestamp)
             
             return current_data
+        except Exception as e:
+            return {}
+    
+    def _update_timeframe_data(self, symbol, price, timestamp):
+        """
+        Update the historical snapshots for different timeframes.
+        
+        Args:
+            symbol (str): Stock symbol
+            price (float): Current price
+            timestamp (int): Current timestamp
+        """
+        current_time = datetime.fromtimestamp(timestamp)
+        
+        # Day timeframe - capture every day
+        if timestamp - self.timeframe_last_update['day'] >= 86400:
+            self.timeframe_data['day'] = self._fetch_day_timeframe_data(self.default_symbols)
+            self.timeframe_last_update['day'] = timestamp
+        
+        # Week timeframe - capture every week (604800 seconds = 7 days)
+        if timestamp - self.timeframe_last_update['week'] >= 604800:
+            self.timeframe_data['week'] = self._fetch_week_timeframe_data(self.default_symbols)
+            self.timeframe_last_update['week'] = timestamp
+        
+        # Store current data in each timeframe if the symbol doesn't exist yet
+        for timeframe in ['day', 'week']:
+            if timeframe not in self.timeframe_data or symbol not in self.timeframe_data[timeframe]:
+                if timeframe not in self.timeframe_data:
+                    self.timeframe_data[timeframe] = {}
+                self.timeframe_data[timeframe][symbol] = {
+                    'price': price,
+                    'timestamp': timestamp,
+                    'symbol': symbol
+                }
+    
+    def _copy_timeframe_data(self, timeframe):
+        """Create a copy of the current data for a timeframe snapshot."""
+        return self.timeframe_data.get(timeframe, {}).copy()
+    
+    def _fetch_day_timeframe_data(self, symbols):
+        """Fetch data from 1 day ago using yfinance."""
+        try:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=1)
+            
+            data = {}
+            for symbol in symbols:
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(start=start_date, end=end_date)
+                
+                if not hist.empty:
+                    price = hist['Close'].iloc[0]
+                    timestamp = int(start_date.timestamp())
+                    data[symbol] = {
+                        'price': price,
+                        'timestamp': timestamp,
+                        'symbol': symbol
+                    }
+            
+            return data
+        except Exception as e:
+            return {}
+    
+    def _fetch_week_timeframe_data(self, symbols):
+        """Fetch data from 1 week ago using yfinance."""
+        try:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=7)
+            
+            data = {}
+            for symbol in symbols:
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(start=start_date, end=start_date + timedelta(days=1))
+                
+                if not hist.empty:
+                    price = hist['Close'].iloc[0]
+                    timestamp = int(start_date.timestamp())
+                    data[symbol] = {
+                        'price': price,
+                        'timestamp': timestamp,
+                        'symbol': symbol
+                    }
+            
+            return data
         except Exception as e:
             return {}
     
@@ -123,6 +226,20 @@ class StockAPI:
             return changes
         except Exception as e:
             return {}
+    
+    def get_timeframe_data(self, timeframe):
+        """
+        Get stock data for a specific timeframe comparison.
+        
+        Args:
+            timeframe (str): Timeframe to get data for ('day', 'week')
+            
+        Returns:
+            dict: Historical data for the specified timeframe
+        """
+        if timeframe in self.timeframe_data:
+            return self.timeframe_data[timeframe]
+        return {}
     
     def search_stocks(self, query):
         """
