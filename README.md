@@ -65,14 +65,6 @@ cd stock-analysis
 pip install -r requirements.txt
 ```
 
-3. (Optional) Set up environment variables:
-Create a `.env` file with:
-```
-API_KEY=your_api_key_if_needed
-WEB_PORT=8050
-DEBUG_MODE=False
-```
-
 ### Running the Application
 
 Run the main application:
