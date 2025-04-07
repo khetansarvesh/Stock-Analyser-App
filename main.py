@@ -127,11 +127,11 @@ class StockAnalysisApp:
                                     dbc.Select(
                                         id="timeframe-selector",
                                         options=[
-                                            {"label": "Default", "value": "default"},
-                                            {"label": "1 Day Ago", "value": "day"},
-                                            {"label": "1 Week Ago", "value": "week"}
+                                            {"label": "Current", "value": "default"},
+                                            {"label": "1 Week Ago", "value": "one_week"},
+                                            {"label": "2 Weeks Ago", "value": "two_week"}
                                         ],
-                                        value="default"
+                                        value="one_week"
                                     )
                                 ], width=6)
                             ])
@@ -290,7 +290,7 @@ class StockAnalysisApp:
             [Input("interval-component", "n_intervals")]
         )(self.update_time_display)
     
-    def update_gainers_losers_chart(self, n_intervals=None, n_clicks=None, timeframe="default"):
+    def update_gainers_losers_chart(self, n_intervals=None, n_clicks=None, timeframe="one_week"):
         """Update the gainers and losers chart."""
         if self.trend_analyzer.last_update is None:
             # No data yet
@@ -298,10 +298,10 @@ class StockAnalysisApp:
         
         # Get title based on timeframe
         title = "Top Gainers and Losers"
-        if timeframe == "day":
-            title = "Top Gainers and Losers - 1 Day Comparison"
-        elif timeframe == "week":
+        if timeframe == "one_week":
             title = "Top Gainers and Losers - 1 Week Comparison"
+        elif timeframe == "two_week":
+            title = "Top Gainers and Losers - 2 Week Comparison"
         
         if timeframe == "default":
             top_gainers = self.trend_analyzer.get_top_gainers(5)

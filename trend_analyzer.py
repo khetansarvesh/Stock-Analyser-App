@@ -26,12 +26,12 @@ class TrendAnalyzer:
         
         # Heaps for different timeframes
         self.timeframe_heaps = {
-            'day': {
+            'one_week': {
                 'gainers': StockMaxHeap(max_size=max_size),
                 'losers': StockMinHeap(max_size=max_size),
                 'last_update': None
             },
-            'week': {
+            'two_week': {
                 'gainers': StockMaxHeap(max_size=max_size),
                 'losers': StockMinHeap(max_size=max_size),
                 'last_update': None
@@ -101,7 +101,7 @@ class TrendAnalyzer:
             timestamp (int): Timestamp of the data point
         """
         # Get timeframe data from the stock API
-        for timeframe in ['day', 'week']:
+        for timeframe in ['one_week', 'two_week']:
             timeframe_data = self.stock_api.get_timeframe_data(timeframe)
             
             if timeframe_data and symbol in timeframe_data:
@@ -148,7 +148,7 @@ class TrendAnalyzer:
         
         Args:
             n (int): Number of top gainers to return
-            timeframe (str): Timeframe for comparison ('day', 'week', or None for default)
+            timeframe (str): Timeframe for comparison ('one_week', 'two_week', or None for default)
             
         Returns:
             list: List of top gainers
@@ -163,7 +163,7 @@ class TrendAnalyzer:
         
         Args:
             n (int): Number of top losers to return
-            timeframe (str): Timeframe for comparison ('day', 'week', or None for default)
+            timeframe (str): Timeframe for comparison ('one_week', 'two_week', or None for default)
             
         Returns:
             list: List of top losers
@@ -232,7 +232,7 @@ class TrendAnalyzer:
         Generate a summary report of current market trends.
         
         Args:
-            timeframe (str): Timeframe for comparison ('day', 'week', or None for default)
+            timeframe (str): Timeframe for comparison ('one_week', 'two_week', or None for default)
             
         Returns:
             dict: Summary report
@@ -245,10 +245,10 @@ class TrendAnalyzer:
         
         # Determine the appropriate title based on timeframe
         timeframe_title = ""
-        if timeframe == 'day':
-            timeframe_title = "1 Day Comparison"
-        elif timeframe == 'week':
+        if timeframe == 'one_week':
             timeframe_title = "1 Week Comparison"
+        elif timeframe == 'two_week':
+            timeframe_title = "2 Week Comparison"
         
         return {
             'timestamp': self.last_update or int(time.time()),

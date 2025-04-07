@@ -23,14 +23,14 @@ class StockAPI:
         
         # Historical snapshots for different timeframes
         self.timeframe_data = {
-            'day': {},     # Snapshot from 1 day ago
-            'week': {}     # Snapshot from 1 week ago
+            'one_week': {},     # Snapshot from 1 week ago
+            'two_week': {}      # Snapshot from 2 weeks ago
         }
         
         # Last update timestamps for each timeframe
         self.timeframe_last_update = {
-            'day': 0,
-            'week': 0
+            'one_week': 0,
+            'two_week': 0
         }
     
     def get_current_prices(self, symbols=None):
@@ -80,18 +80,18 @@ class StockAPI:
         """
         current_time = datetime.fromtimestamp(timestamp)
         
-        # Day timeframe - capture every day
-        if timestamp - self.timeframe_last_update['day'] >= 86400:
-            self.timeframe_data['day'] = self._fetch_day_timeframe_data(self.default_symbols)
-            self.timeframe_last_update['day'] = timestamp
+        # One week timeframe - capture every week (604800 seconds = 7 days)
+        if timestamp - self.timeframe_last_update['one_week'] >= 604800:
+            self.timeframe_data['one_week'] = self._fetch_one_week_timeframe_data(self.default_symbols)
+            self.timeframe_last_update['one_week'] = timestamp
         
-        # Week timeframe - capture every week (604800 seconds = 7 days)
-        if timestamp - self.timeframe_last_update['week'] >= 604800:
-            self.timeframe_data['week'] = self._fetch_week_timeframe_data(self.default_symbols)
-            self.timeframe_last_update['week'] = timestamp
+        # Two week timeframe - capture every two weeks (1209600 seconds = 14 days)
+        if timestamp - self.timeframe_last_update['two_week'] >= 1209600:
+            self.timeframe_data['two_week'] = self._fetch_two_week_timeframe_data(self.default_symbols)
+            self.timeframe_last_update['two_week'] = timestamp
         
         # Store current data in each timeframe if the symbol doesn't exist yet
-        for timeframe in ['day', 'week']:
+        for timeframe in ['one_week', 'two_week']:
             if timeframe not in self.timeframe_data or symbol not in self.timeframe_data[timeframe]:
                 if timeframe not in self.timeframe_data:
                     self.timeframe_data[timeframe] = {}
@@ -105,16 +105,16 @@ class StockAPI:
         """Create a copy of the current data for a timeframe snapshot."""
         return self.timeframe_data.get(timeframe, {}).copy()
     
-    def _fetch_day_timeframe_data(self, symbols):
-        """Fetch data from 1 day ago using yfinance."""
+    def _fetch_one_week_timeframe_data(self, symbols):
+        """Fetch data from 1 week ago using yfinance."""
         try:
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=1)
+            start_date = end_date - timedelta(days=7)
             
             data = {}
             for symbol in symbols:
                 ticker = yf.Ticker(symbol)
-                hist = ticker.history(start=start_date, end=end_date)
+                hist = ticker.history(start=start_date, end=start_date + timedelta(days=1))
                 
                 if not hist.empty:
                     price = hist['Close'].iloc[0]
@@ -129,11 +129,11 @@ class StockAPI:
         except Exception as e:
             return {}
     
-    def _fetch_week_timeframe_data(self, symbols):
-        """Fetch data from 1 week ago using yfinance."""
+    def _fetch_two_week_timeframe_data(self, symbols):
+        """Fetch data from 2 weeks ago using yfinance."""
         try:
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=7)
+            start_date = end_date - timedelta(days=14)
             
             data = {}
             for symbol in symbols:
@@ -232,7 +232,7 @@ class StockAPI:
         Get stock data for a specific timeframe comparison.
         
         Args:
-            timeframe (str): Timeframe to get data for ('day', 'week')
+            timeframe (str): Timeframe to get data for ('one_week', 'two_week')
             
         Returns:
             dict: Historical data for the specified timeframe
