@@ -56,10 +56,10 @@ class StockAnalysisApp:
         try:
             # Store previous data
             self.previous_data = self.current_data.copy()
-            
+
             # Get current prices
             self.current_data = self.api.get_current_prices()
-            
+
             # Update trend analyzer
             self.trend_analyzer.update_batch(self.current_data, self.previous_data)
             
@@ -94,7 +94,7 @@ class StockAnalysisApp:
             self.update_thread.start()
             
             # Run the dashboard
-            self.app.run_server(debug=config.DEBUG_MODE, port=config.WEB_PORT)
+            self.app.run(debug=config.DEBUG_MODE, port=config.WEB_PORT)
     
     def stop(self):
         """Stop the application."""
@@ -174,7 +174,7 @@ class StockAnalysisApp:
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
-                                    dbc.FormGroup([
+                                    dbc.Form([
                                         dbc.Label("Symbol"),
                                         dbc.Select(
                                             id="alert-symbol",
@@ -187,7 +187,7 @@ class StockAnalysisApp:
                                     ])
                                 ], width=3),
                                 dbc.Col([
-                                    dbc.FormGroup([
+                                    dbc.Form([
                                         dbc.Label("Alert Type"),
                                         dbc.Select(
                                             id="alert-type",
@@ -202,7 +202,7 @@ class StockAnalysisApp:
                                     ])
                                 ], width=3),
                                 dbc.Col([
-                                    dbc.FormGroup([
+                                    dbc.Form([
                                         dbc.Label("Threshold"),
                                         dbc.Input(id="alert-threshold", type="number", value=0)
                                     ])
