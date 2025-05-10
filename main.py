@@ -7,6 +7,7 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 import pandas as pd
+from datetime import datetime, timedelta
 
 # Import project modules
 from stock_api import StockAPI
@@ -57,10 +58,12 @@ class StockAnalysisApp:
         try:
             # Store previous data
             self.previous_data = self.current_data.copy()
-            
-            # Get current prices
-            self.current_data = self.api.get_current_prices()
-            
+            date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
+            time_str = (datetime.now() - timedelta(hours=5)).strftime('%H:%M')
+            target_datetime = datetime.strptime(f"{date} {time_str}", "%Y-%m-%d %H:%M")
+
+            self.current_data = self.api.get_current_prices(target_datetime)
+            print(self.current_data)
             # Update trend analyzer
             self.trend_analyzer.update_batch(self.current_data, self.previous_data)
             
@@ -443,7 +446,6 @@ class StockAnalysisApp:
     def update_time_display(self, n_intervals):
         """Update the last update time display."""
         if self.last_update:
-            from datetime import datetime
             time_str = datetime.fromtimestamp(self.last_update).strftime('%Y-%m-%d %H:%M:%S')
             return f"Last updated: {time_str}"
         return "Last updated: Never"
