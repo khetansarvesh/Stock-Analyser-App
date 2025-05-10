@@ -59,7 +59,7 @@ class StockAnalysisApp:
             # Store previous data
             self.previous_data = self.current_data.copy()
             date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
-            time_str = (datetime.now() - timedelta(hours=5)).strftime('%H:%M')
+            time_str = (datetime.now() - timedelta(hours=8)).strftime('%H:%M')
             target_datetime = datetime.strptime(f"{date} {time_str}", "%Y-%m-%d %H:%M")
 
             self.current_data = self.api.get_current_prices(target_datetime)
